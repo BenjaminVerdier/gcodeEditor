@@ -3,7 +3,6 @@ from QxTSpanSlider import QxtSpanSlider
 from debugThingies import *
 
 import sys
-#from PyQt4.QtCore import pyqtSlot
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 
@@ -61,34 +60,13 @@ class MainWidget(QWidget):
         self.minLayerSpin.setRange(1, 1)
         self.minLayerSpin.setSingleStep(1)
         self.minLayerSpin.setValue(1)
-
         self.minLayerSpin.valueChanged.connect(self.minmaxSpinnerChanged)
-        """
 
-        self.minLayerSlid = QSlider(Qt.Horizontal)
-        self.minLayerSlid.setMinimum(1)
-        self.minLayerSlid.setMaximum(1)
-        self.minLayerSlid.setValue(1)
-
-
-        self.minLayerSpin.valueChanged.connect(lambda: self.layerSpinChange(self.minLayerSpin, self.minLayerSlid, True))
-        self.minLayerSlid.valueChanged.connect(lambda: self.layerSlidChange(self.minLayerSpin, self.minLayerSlid, True))
-        """
         self.maxLayerSpin = QSpinBox()
         self.maxLayerSpin.setRange(1, 1)
         self.maxLayerSpin.setSingleStep(1)
         self.maxLayerSpin.setValue(1)
-
         self.maxLayerSpin.valueChanged.connect(self.minmaxSpinnerChanged)
-        """
-        self.maxLayerSlid = QSlider(Qt.Horizontal)
-        self.maxLayerSlid.setMinimum(1)
-        self.maxLayerSlid.setMaximum(1)
-        self.maxLayerSlid.setValue(1)
-
-        self.maxLayerSpin.valueChanged.connect(lambda: self.layerSpinChange(self.maxLayerSpin, self.maxLayerSlid, True))
-        self.maxLayerSlid.valueChanged.connect(lambda: self.layerSlidChange(self.maxLayerSpin, self.maxLayerSlid, True))
-        """
 
         self.spanSlider = QxtSpanSlider()
         self.spanSlider.setRange(1,1)
@@ -110,9 +88,24 @@ class MainWidget(QWidget):
 
         mainLayout.addWidget(tabs)
 
+        #Utility buttons
+        buttonsLayout = QHBoxLayout()
+
         loadGcBtn = QPushButton("Load Gcode")
-        mainLayout.addWidget(loadGcBtn)
+        buttonsLayout.addWidget(loadGcBtn)
         loadGcBtn.clicked.connect(self.loadGcode)
+
+        self.describeBtn = QPushButton("Describe gcode")
+        buttonsLayout.addWidget(self.describeBtn)
+        self.describeBtn.clicked.connect(self.describe_gcode)
+        self.describeBtn.setDisabled(True)
+
+        self.describeMeshBtn = QPushButton("Describe mesh")
+        buttonsLayout.addWidget(self.describeMeshBtn)
+        self.describeMeshBtn.clicked.connect(self.describe_gcode_mesh)
+        self.describeMeshBtn.setDisabled(True)
+
+        mainLayout.addLayout(buttonsLayout)
 
         #Other variables
 
@@ -123,9 +116,14 @@ class MainWidget(QWidget):
     @pyqtSlot()
     def loadGcode(self):
         gcodePath = QFileDialog.getOpenFileName(self, 'Open Gcode', '../resources', '*.gcode')
+        if gcodePath[0] == '':
+            print("No file chosen")
+            return
+        #Loading gcode and preprocessing
         self.gcode = GcodeReader(gcodePath[0])
-        self.gcode.describe()
-        #self.gcode.describe_mesh()
+        self.gcode._compute_subpaths()
+        self.gcode.mesh(1)
+        #Changing sliders and spinners
         self.layerSpin.setMaximum(self.gcode.n_layers)
         self.layerSlid.setMaximum(self.gcode.n_layers)
         self.minLayerSpin.setMaximum(self.gcode.n_layers)
@@ -133,6 +131,10 @@ class MainWidget(QWidget):
         self.maxLayerSpin.setValue(self.gcode.n_layers)
         self.spanSlider.setRange(1,self.gcode.n_layers)
         self.spanSlider.setSpan(1,self.gcode.n_layers)
+
+        #Enabling description
+        self.describeBtn.setDisabled(False)
+        self.describeMeshBtn.setDisabled(False)
 
         self.printLayer()
         self.displayScatter()
@@ -175,6 +177,14 @@ class MainWidget(QWidget):
         if changeLow or changeHigh:
             self.displayScatter(self.spanSlider.lowerValue, self.spanSlider.upperValue)
 
+    @pyqtSlot()
+    def describe_gcode(self):
+        self.gcode.describe()
+
+    @pyqtSlot()
+    def describe_gcode_mesh(self):
+        self.gcode.describe_mesh(1)
+
     def printLayer(self, layer = 1):
         self.plot.clear()
         beg,end = self.gcode.subpath_index_bars[layer - 1],self.gcode.subpath_index_bars[layer]
@@ -187,7 +197,7 @@ class MainWidget(QWidget):
             maximum = self.gcode.n_layers
         if not self.gcode.elements:
             self.gcode.mesh(1)
-        translatex, translatey = (max(self.gcode.xyzlimits[2],self.gcode.xyzlimits[0]),max(self.gcode.xyzlimits[1],self.gcode.xyzlimits[3]))
+        translatex, translatey = ((self.gcode.xyzlimits[0] + self.gcode.xyzlimits[1])/2, (self.gcode.xyzlimits[2] + self.gcode.xyzlimits[3])/2)
         #Create gird for pretty plot
         zgrid = gl.GLGridItem()
         zgrid.scale(1, 1, 1)

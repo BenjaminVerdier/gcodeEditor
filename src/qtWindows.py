@@ -15,8 +15,6 @@ import numpy as np
 TODO: add interactive gcode editing in the 2D view.
 How to do that:
 Apparently there are movable objects in pyqtgraph 2d graphics widgets. So.
-- Add an 'Edit' button that opens a new window with the curent layer in 'edit' mode (see below)
-- The new window has a reset, confirm and cancel button.
 - Take all unique points in the layer and put them in the graph as editable.
 - Draw the lines connecting the points together.
 - When a user clicks a point (left single click, hold), drags the point around.

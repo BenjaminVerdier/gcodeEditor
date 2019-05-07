@@ -11,6 +11,18 @@ import pyqtgraph.opengl as gl
 
 import numpy as np
 
+"""
+TODO: add interactive gcode editing in the 2D view.
+How to do that:
+Apparently there are movable objects in pyqtgraph 2d graphics widgets. So.
+- Add an 'Edit' button that opens a new window with the curent layer in 'edit' mode (see below)
+- The new window has a reset, confirm and cancel button.
+- Take all unique points in the layer and put them in the graph as editable.
+- Draw the lines connecting the points together.
+- When a user clicks a point (left single click, hold), drags the point around.
+- Double-click and hold a point to create a new node (adding a new subpath at the end or creating a new node in between two existing nodes)
+"""
+
 class MainWidget(QWidget):
 
     def __init__(self):
@@ -46,10 +58,15 @@ class MainWidget(QWidget):
         self.layerSpin.valueChanged.connect(lambda: self.layerSpinChange(self.layerSpin, self.layerSlid))
         self.layerSlid.valueChanged.connect(lambda: self.layerSlidChange(self.layerSpin, self.layerSlid))
 
+        self.editBtn = QPushButton("Edit current layer")
+        self.editBtn.clicked.connect(self.launchEditor)
+        self.editBtn.setDisabled(True)
+
         layout2DTab.addWidget(self.canvas,0,0,5,15)
         layout2DTab.addWidget(QLabel("Layer:"),15,0)
         layout2DTab.addWidget(self.layerSpin,15,1)
         layout2DTab.addWidget(self.layerSlid,15,2)
+        layout2DTab.addWidget(self.editBtn, 15,3)
 
         #3D Tab
         threeDTab.setLayout(layout3DTab)
@@ -132,9 +149,10 @@ class MainWidget(QWidget):
         self.spanSlider.setRange(1,self.gcode.n_layers)
         self.spanSlider.setSpan(1,self.gcode.n_layers)
 
-        #Enabling description
+        #Enabling description and edition
         self.describeBtn.setDisabled(False)
         self.describeMeshBtn.setDisabled(False)
+        self.editBtn.setDisabled(False)
 
         self.printLayer()
         self.displayScatter()
@@ -185,6 +203,22 @@ class MainWidget(QWidget):
     def describe_gcode_mesh(self):
         self.gcode.describe_mesh(1)
 
+    @pyqtSlot()
+    def launchEditor(self):
+        layer = self.layerSpin.value()
+        subpaths = np.array(self.gcode.subpaths[self.gcode.subpath_index_bars[layer - 1]:self.gcode.subpath_index_bars[layer]])
+        self.edit = EditWindow(self, subpaths)
+        self.edit.show()
+        self.layerBeingEdited = layer
+        self.edit.finishedEdit.connect(self.receiveNewLayer)
+
+
+    @pyqtSlot(np.ndarray)
+    def receiveNewLayer(self, subpaths):
+        dbg("The layer that was edited was number " + str(self.layerBeingEdited))
+        dbg("And now for some nonsense:")
+        dbg(subpaths)
+
     def printLayer(self, layer = 1):
         self.plot.clear()
         beg,end = self.gcode.subpath_index_bars[layer - 1],self.gcode.subpath_index_bars[layer]
@@ -229,3 +263,63 @@ class MainWindow(QMainWindow):
         self.resize(1300,1200)
 
         self.show()
+
+class EditWindow(QWidget):
+
+    finishedEdit = pyqtSignal(np.ndarray, name="finishedEdit")
+
+    def __init__(self, parent, subpaths):
+        super(EditWindow, self).__init__(parent=None)
+        self.origSubpaths = subpaths
+        self.initUI()
+
+    def initUI(self):
+        mainLayout = QGridLayout()
+        self.setLayout(mainLayout)
+        #2D plot
+        self.canvas = pg.GraphicsLayoutWidget()
+        self.plot = self.canvas.addPlot()
+        self.pt = self.plot.plot(pen='w')
+
+        mainLayout.addWidget(self.canvas,0,0,5,15)
+        #Buttons
+        resetButton = QPushButton("Reset")
+        resetButton.clicked.connect(self.resetEdit)
+
+        confirmButton = QPushButton("Confirm")
+        confirmButton.clicked.connect(self.confirmEdit)
+
+        cancelButton = QPushButton("Cancel")
+        cancelButton.clicked.connect(self.cancelEdit)
+
+        mainLayout.addWidget(resetButton,15,0)
+        mainLayout.addWidget(confirmButton,15,1)
+        mainLayout.addWidget(cancelButton,15,2)
+
+        self.loadOriginalPaths()
+
+        self.resize(1300,1200)
+
+    def loadOriginalPaths(self):
+        self.plot.clear()
+        for path in self.origSubpaths:
+            self.plot.plot(path[0], path[1])
+
+    @pyqtSlot()
+    def resetEdit(self):
+        #confirm = QMessageBox.question(self, 'Confirmation', "Are you sure you want to reset the path?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        #if confirm == QMessageBox.Yes:  # accepted
+        self.loadOriginalPaths()
+
+    @pyqtSlot()
+    def confirmEdit(self):
+        #confirm = QMessageBox.question(self, 'Confirmation', "Are you sure you want to confirm the edit?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        #if confirm == QMessageBox.Yes:  # accepted
+        self.finishedEdit.emit(self.origSubpaths)
+        self.close()
+
+    @pyqtSlot()
+    def cancelEdit(self):
+        #confirm = QMessageBox.question(self, 'Confirmation', "Are you sure you want to cancel the edit?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        #if confirm == QMessageBox.Yes:  # accepted
+        self.close()

@@ -12,13 +12,20 @@ import pyqtgraph.opengl as gl
 import numpy as np
 
 """
-TODO: add interactive gcode editing in the 2D view.
+TODO: fix gcode reader.
+- Add support for comments in gcode (slic3r adds tons of comments to its generated gcode).
+- If the last layer is empty, remove it.
+TODO: add interactive path editing in the 2D view.
 How to do that:
 Apparently there are movable objects in pyqtgraph 2d graphics widgets. So.
 - Take all unique points in the layer and put them in the graph as editable.
 - Draw the lines connecting the points together.
 - When a user clicks a point (left single click, hold), drags the point around.
 - Double-click and hold a point to create a new node (adding a new subpath at the end or creating a new node in between two existing nodes)
+TODO: add gcode writer.
+The hard part is to determine the amount of extruded material for new/edited nodes.
+- First (easy) way to do it is to take the amount per mm of surrounding nodes and use the same/an average. This is not ideal but it might work.
+- Second (hard) way to do it is to do the calculation ourselves, but we are lacking a lot of info for this.
 """
 
 class MainWidget(QWidget):
@@ -225,10 +232,10 @@ class MainWidget(QWidget):
 
     def displayScatter(self, minimum = 1, maximum = 0):
         #preprocess
-        if maximum < minimum:
-            maximum = self.gcode.n_layers
         if not self.gcode.elements:
             self.gcode.mesh(1)
+        if maximum < minimum:
+            maximum = len(self.gcode.elements_index_bars) - 1
         translatex, translatey = ((self.gcode.xyzlimits[0] + self.gcode.xyzlimits[1])/2, (self.gcode.xyzlimits[2] + self.gcode.xyzlimits[3])/2)
         #Create gird for pretty plot
         zgrid = gl.GLGridItem()
@@ -236,6 +243,9 @@ class MainWidget(QWidget):
         self.view.addItem(zgrid)
         #compute data
         data = []
+        dbg(minimum)
+        dbg(maximum)
+        dbg(len(self.gcode.elements_index_bars))
         left, right = (self.gcode.elements_index_bars[minimum - 1],self.gcode.elements_index_bars[maximum])
         for x0, y0, x1, y1, z in self.gcode.elements[left:right]:
             data.append([x0,y0,z])

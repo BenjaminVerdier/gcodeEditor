@@ -184,7 +184,13 @@ class GcodeReader:
         for line in lines:
             old_gxyzef = gxyzef[:]
             for token in line.split():
-                gxyzef[d[token[0]]] = float(token[1:])
+                if token[1:] == "":
+                    continue
+                try:
+                    gxyzef[d[token[0]]] = float(token[1:])
+                except:
+                    print("invalid token: " + token[1:] + ";")
+                    sys.exit(1)
             if gxyzef[3] > old_gxyzef[3]:  # z value
                 self.n_layers += 1
                 self.seg_index_bars.append(seg_count)

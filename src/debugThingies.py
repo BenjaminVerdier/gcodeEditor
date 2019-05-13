@@ -1,8 +1,7 @@
 import random
 
-def dbg(str = None):
-    if str is None:
+def dbg(dbgStr = None):
+    if dbgStr is None:
         strs=["hello","bite","cul","merde","sa race"]
-        print(random.choice(strs))
-    else:
-        print(str)
+        dbgStr = random.choice(strs)
+    print("DEBUG: " + str(dbgStr))

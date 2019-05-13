@@ -235,7 +235,7 @@ class MainWidget(QWidget):
         if not self.gcode.elements:
             self.gcode.mesh(1)
         if maximum < minimum:
-            maximum = len(self.gcode.elements_index_bars) - 1
+            maximum = self.gcode.n_layers
         translatex, translatey = ((self.gcode.xyzlimits[0] + self.gcode.xyzlimits[1])/2, (self.gcode.xyzlimits[2] + self.gcode.xyzlimits[3])/2)
         #Create gird for pretty plot
         zgrid = gl.GLGridItem()
@@ -243,9 +243,6 @@ class MainWidget(QWidget):
         self.view.addItem(zgrid)
         #compute data
         data = []
-        dbg(minimum)
-        dbg(maximum)
-        dbg(len(self.gcode.elements_index_bars))
         left, right = (self.gcode.elements_index_bars[minimum - 1],self.gcode.elements_index_bars[maximum])
         for x0, y0, x1, y1, z in self.gcode.elements[left:right]:
             data.append([x0,y0,z])

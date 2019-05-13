@@ -182,6 +182,9 @@ class GcodeReader:
         d = dict(zip(['G', 'X', 'Y', 'Z', 'E', 'F'], range(6)))
         seg_count = 0
         for line in lines:
+            line = line.split(';')[0]
+            if line == "":
+                continue
             old_gxyzef = gxyzef[:]
             for token in line.split():
                 if token[1:] == "":
@@ -203,7 +206,10 @@ class GcodeReader:
                 seg_count += 1
         self.n_segs = len(self.segs)
         self.segs = np.array(self.segs)
-        self.seg_index_bars.append(self.n_segs)
+        if not self.seg_index_bars[-1] == len(self.segs):
+            self.seg_index_bars.append(self.n_segs)
+        else:
+            self.n_layers -= 1
         assert(len(self.seg_index_bars) - self.n_layers == 1)
 
     def _read_fdm_stratasys(self):
